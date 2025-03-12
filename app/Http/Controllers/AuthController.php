@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use PhpParser\Node\Stmt\TryCatch;
@@ -36,17 +37,60 @@ class AuthController extends Controller
         $password = $request->input('text_password');
         
         //testing database connection
-        try {
+        /*try {
             DB::connection()->getPdo();
             echo 'Connection success!';
         } catch (\PDOException $e) {
             echo 'Connection failed: ' . $e->getMessage();
+        }*/
+
+        //get all the users from database
+        //$users = User::all()->toArray();
+
+        //as an object instance of the model's class
+        /*$userModel = new User();
+        $users = $userModel->all()->toArray();
+        echo '<pre>';
+        print_r($users);*/
+
+        //check if users exist
+        $user = User::where('username', $username)
+                      ->where('deleted_at', NULL)
+                      ->first();
+        if(!$user) {
+            return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('loginError', 'Username incorreto.');
         }
 
-        echo 'FIM!';
+        //check if password is correct
+        if(!password_verify($password, $user->password)) {
+            return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('loginError', 'Password incorreto.');
+        }
+
+        //update last login
+        $user->last_login = date('Y-m-d H:i:s');
+        $user->save();
+
+        //login user in session
+        session([
+            'user' => [
+                'id' => $user->id,
+                'username' => $user->username
+            ]
+        ]);
+
+        echo 'LOGIN COM SUCESSO!';
+
     }
 
     public function logout() {
-        echo 'logout';
+        //logout form the application
+        session()->forget('user');
+        return redirect()->to('/login');
     }
 }
